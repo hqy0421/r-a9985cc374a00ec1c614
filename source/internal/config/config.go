@@ -11,6 +11,7 @@ type Config struct {
 	Profiles    ProfilesConfig    `yaml:"profiles"`
 	State       StateConfig       `yaml:"state"`
 	Catalog     CatalogConfig     `yaml:"catalog"`
+	Compaction  CompactionConfig  `yaml:"compaction"`
 }
 
 // SourceConfig holds the database source settings.
@@ -34,14 +35,14 @@ type PostgresConfig struct {
 // StorageConfig holds output storage settings.
 // Type selects the sink adapter: "filesystem" (default), "gcs", or "s3".
 type StorageConfig struct {
-	Type            string `yaml:"type"`              // "filesystem" (default), "gcs", "s3"
-	Path            string `yaml:"path"`              // filesystem: output directory
-	Bucket          string `yaml:"bucket"`            // gcs/s3: bucket name
-	Prefix          string `yaml:"prefix"`            // gcs/s3: object key prefix
-	Region          string `yaml:"region"`            // s3: AWS region
-	Endpoint        string `yaml:"endpoint"`          // s3: custom endpoint (MinIO, R2)
-	CredentialsFile string `yaml:"credentials_file"`  // gcs: service account JSON path
-	PartitionByTag  bool   `yaml:"partition_by_tag"`  // group tables by tag in storage
+	Type            string `yaml:"type"`             // "filesystem" (default), "gcs", "s3"
+	Path            string `yaml:"path"`             // filesystem: output directory
+	Bucket          string `yaml:"bucket"`           // gcs/s3: bucket name
+	Prefix          string `yaml:"prefix"`           // gcs/s3: object key prefix
+	Region          string `yaml:"region"`           // s3: AWS region
+	Endpoint        string `yaml:"endpoint"`         // s3: custom endpoint (MinIO, R2)
+	CredentialsFile string `yaml:"credentials_file"` // gcs: service account JSON path
+	PartitionByTag  bool   `yaml:"partition_by_tag"` // group tables by tag in storage
 }
 
 // ReplicationConfig holds replication slot/publication settings.
@@ -85,6 +86,16 @@ type CatalogConfig struct {
 	Database string `yaml:"database"` // glue: database name
 	Region   string `yaml:"region"`   // glue: AWS region (defaults to Storage.Region)
 	Endpoint string `yaml:"endpoint"` // glue: custom endpoint (LocalStack / testing)
+}
+
+// CompactionConfig controls compaction behavior.
+type CompactionConfig struct {
+	// DeltaRetention is the minimum time a delta file stays readable in the
+	// sink after it has been folded into a published base. Compaction only
+	// deletes delta files after this handoff window elapses, so consumers
+	// working from an older manifest never hit a missing file. Empty means
+	// the package default (7 days).
+	DeltaRetention string `yaml:"delta_retention"`
 }
 
 // StorageType returns the resolved storage type, defaulting to "filesystem".

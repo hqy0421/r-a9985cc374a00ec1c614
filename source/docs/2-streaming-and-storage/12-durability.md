@@ -117,7 +117,17 @@ The manifest is persisted under `If-Match` CAS on sinks that support it (S3 toda
 
 When conflicts fire faster than ~1/hour — typically two `pg-cdc start` processes pointed at the same prefix — the **CAS conflict circuit breaker** (`flush.cas_breaker_threshold`, default 10; `flush.cas_breaker_window_sec`, default 60) trips the streamer fatal so the dual-writer surfaces as a hard exit rather than an endless overwrite-each-other livelock. Once tripped the breaker is sticky; an operator restart is the recovery path because a dual-writer needs diagnosis before resumption. See [`runbooks/manifest-conflicts.md`](runbooks/manifest-conflicts.md).
 
-Compaction (PR #132) writes the manifest **before** deleting its old delta files — a per-table CAS commit gates the delete. A crash anywhere before that gate leaves the old base + deltas authoritative and the next compact replays from the same `BaseEpoch`. Pre-fix the loop persisted the manifest once at the end of all tables, so a per-table delete that completed before the trailing write silently lost data on crash.
+Compaction never deletes delta files inline. Merged deltas are written to
+`sink:compaction-journal.json` before the new base's manifest commit, and a
+later run reclaims each entry only after the handoff window
+(`compaction.delta_retention`, default 7 days) elapses *and* the covering
+base is published in the current manifest. A crash between the journal write
+and the manifest commit is therefore safe: the entry is non-purgeable until
+the covering base actually ships, and the next compaction redoes the same
+pinned scope idempotently (journal entries de-duplicate by delta path). The
+compaction scope itself is pinned to the start-of-run manifest, so deltas the
+streamer lands mid-compaction are outside the run and can never be reclaimed
+by it.
 
 ## Verified scenarios
 

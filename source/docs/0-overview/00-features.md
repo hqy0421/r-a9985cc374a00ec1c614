@@ -51,8 +51,9 @@ Long-running daemon that consumes the replication slot, buffers events, and flus
 Merges delta epochs into a new base snapshot, applies I/U/D semantics, expires soft-deletes on a configurable TTL.
 - [x] `pg-cdc compact` subcommand (also wired to a systemd timer — see Operability)
 - [x] Tombstone TTL (default 30 days, configurable)
-- [x] Iceberg snapshot expiration (default retain 100 per table)
-- [x] Manifest CAS-safe coexistence with the streaming daemon
+- [x] Scope pinned to the start-of-run manifest — batches the streamer lands mid-compaction are never merged or reclaimed
+- [x] Delta handoff journal (`compaction-journal.json`) with configurable retention (default 7 days) so old-manifest consumers never hit a deleted file
+- [x] Safe coexistence with the streaming daemon via pre-publish manifest re-read and merge
 - [x] Compaction details in [`05-compaction.md`](05-compaction.md)
 
 ### Schema evolution

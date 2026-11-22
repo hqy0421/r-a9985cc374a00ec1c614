@@ -17,8 +17,8 @@ var cfgFile string
 
 func main() {
 	root := &cobra.Command{
-		Use:   "pg-cdc",
-		Short: "PostgreSQL CDC server — WAL streaming to typed Parquet",
+		Use:               "pg-cdc",
+		Short:             "PostgreSQL CDC server — WAL streaming to typed Parquet",
 		CompletionOptions: cobra.CompletionOptions{DisableDefaultCmd: true},
 	}
 
@@ -154,7 +154,8 @@ func discoverCmd() *cobra.Command {
 }
 
 func compactCmd() *cobra.Command {
-	return &cobra.Command{
+	var deltaRetention string
+	cmd := &cobra.Command{
 		Use:   "compact",
 		Short: "Merge delta files into a new base snapshot",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -166,9 +167,18 @@ func compactCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return internal.Compact(cmd.Context(), sink)
+			// Explicit flag wins over config file; empty falls back to the
+			// package default inside ResolveDeltaRetention.
+			retention := cfg.Compaction.DeltaRetention
+			if deltaRetention != "" {
+				retention = deltaRetention
+			}
+			return internal.Compact(cmd.Context(), sink, internal.ResolveDeltaRetention(retention))
 		},
 	}
+	cmd.Flags().StringVar(&deltaRetention, "delta-retention", "",
+		"minimum time compacted delta files remain readable (Go duration, e.g. 168h; overrides compaction.delta_retention)")
+	return cmd
 }
 
 func versionCmd() *cobra.Command {

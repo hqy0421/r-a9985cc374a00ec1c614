@@ -84,6 +84,9 @@ catalog:
   database: my_db                       # Glue database name
   region: us-west-2                     # AWS region (defaults to storage.region)
   endpoint: ""                          # optional custom endpoint (LocalStack / testing)
+
+compaction:
+  delta_retention: 168h                 # keep compacted deltas readable for this long
 ```
 
 ## Sections
@@ -158,6 +161,16 @@ Optional metadata-catalog integration. When `type: glue`, `pg-cdc init` and `pg-
 | `endpoint` | No | | Custom endpoint (LocalStack / testing) |
 
 For Layer-2 tag governance (required-tag enforcement, column-level overrides, Lake Formation reconciliation), see the [commercial edition](commercial-edition.md).
+
+### compaction
+
+Controls `pg-cdc compact`. Compaction never deletes a delta inline: merged deltas are recorded in a sink-side handoff journal (`compaction-journal.json`) and removed only after the retention window elapses and the covering base is published. This keeps consumers following an older manifest from referencing a removed file.
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `delta_retention` | No | `168h` (7 days) | Minimum time a compacted delta remains readable. Go duration (`72h`, `168h`). The `--delta-retention` CLI flag overrides this. |
+
+The window must cover the slowest consumer's manifest refresh interval. A longer window is always safe — it only delays reclamation; a shorter window risks old-manifest readers hitting missing delta files.
 
 ## Example Configurations
 
